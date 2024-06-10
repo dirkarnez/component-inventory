@@ -1,14 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Page Title</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    <label for="ic-input">Name (4 to 8 characters):</label>
+    <br>
+    <input id="ic-input" type="text" name="name" required/>
+    <script>
+        const regulator = { name: "regulator" };
+        const types = [
+            regulator
+        ];
 
-<h1>This is a Heading</h1>
-<p>This is a paragraph.</p>
-
+        const data = [{
+            name: "555", type: regulator 
+        }];
+        
+        document.getElementById("ic-input").addEventListener("input", (event) => {
+            debugger;
+            //result.textContent = `You like ${event.target.value}`;
+        });
+    </script>
 </body>
 </html>
-
-
