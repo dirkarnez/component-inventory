@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Inventory</title>
 </head>
 <!-- <script src='./sql-wasm.js'></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/reflect-metadata/0.2.2/Reflect.min.js" integrity="sha512-qidytWbev88NYt9i3e74xHoTnb9iH+n6INMHLwT2vHDD4pg2tWo9Zy8ZH2OJN3287DtIo2yZxJr6EnEvQCbWoA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -131,7 +132,7 @@
                 const result = document.getElementById("result-container");
                 result.innerHTML = "";
 
-                const value = document.getElementById("component-input").value;
+                const value = new FormData(event.target).get("name");
                 const found = await componentPackageRepository.find({ relations: ["component" ], where: { name: typeorm.ILike(`%${value}%`) } });
                 const hasResult = Array.isArray(found) && found.length > 0;
                 if (hasResult) {
@@ -189,7 +190,7 @@
 
 <body>
     <form id="component-form">
-        <label for="component-input">Name (4 to 8 characters):</label>
+        <label for="component-input">Name to search:</label>
         <br>
         <input id="component-input" type="text" name="name" required/>
         <br>
