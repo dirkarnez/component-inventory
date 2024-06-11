@@ -4,24 +4,203 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-    <label for="ic-input">Name (4 to 8 characters):</label>
-    <br>
-    <input id="ic-input" type="text" name="name" required/>
-    <script>
-        const regulator = { name: "regulator" };
-        const types = [
-            regulator
-        ];
+<!-- <script src='./sql-wasm.js'></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reflect-metadata/0.2.2/Reflect.min.js" integrity="sha512-qidytWbev88NYt9i3e74xHoTnb9iH+n6INMHLwT2vHDD4pg2tWo9Zy8ZH2OJN3287DtIo2yZxJr6EnEvQCbWoA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js" integrity="sha512-+6Q7hv5pGUBXOuHWw8OdQx3ac7DzM3oJhYqz7SHDku0yl9EBdMqegoPed4GsHRoNF/VQYK2LTYewAIEBrEf/3w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-        const data = [{
-            name: "555", type: regulator 
-        }];
-        
-        document.getElementById("ic-input").addEventListener("input", (event) => {
-            debugger;
-            //result.textContent = `You like ${event.target.value}`;
+<script>
+    Promise.all([
+        initSqlJs({ locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${filename}` }), 
+        fetch("./typeorm.0.3.20.min.js").then(resp => resp.text())
+    ])
+    .then(values => {
+        // typeorm works only with window.SQL
+        window.SQL = values[0];
+        eval(values[1]);
+
+        //var db = new SQL.Database();
+
+        class Component {
+            // datasheet
+            // ComponentType
+            // used-before
+            // quantity
+            // Location
+            constructor(id, name) {
+                this.id = id;
+                this.name = name;
+            }
+        }
+
+        class ComponentPackage {
+            constructor(id, name, datasheetURL) {
+                this.id = id;
+                this.name = name;
+                this.datasheetURL = datasheetURL;
+            }
+        }
+
+        class ComponentType {
+            
+        }
+
+        class Location {
+            
+        }
+
+        const ComponentSchema = new typeorm.EntitySchema({
+            name: "Component",
+            target: Component,
+            columns: {
+                id: {
+                    primary: true,
+                    generated: "uuid",
+                    type: "uuid"
+                },
+                name: {
+                    type: "varchar"
+                }
+            },
+            relations: {
+                componentPackages: {
+                    type: 'one-to-many',
+                    target: 'ComponentPackage',
+                    inverseSide: 'component'
+                }
+            },
         });
-    </script>
+
+
+        const ComponentPackageSchema = new typeorm.EntitySchema({
+            name: "ComponentPackage",
+            target: ComponentPackage,
+            columns: {
+                id: {
+                    primary: true,
+                    generated: "uuid",
+                    type: "uuid"
+                },
+                name: {
+                    type: "varchar"
+                },
+                datasheetURL: {
+                    type: "varchar"
+                },
+            },
+            relations: {
+                component: {
+                    type: 'many-to-one',
+                    target: 'Component',
+                    joinColumn: {
+                        name: 'component_id',
+                    },
+                    inverseSide: 'componentPackages' // Note that this is the relation name in project entity, no the entity name Order
+                }
+            }
+        });
+
+        typeorm.createConnection({
+            type: "sqljs",
+            entities: [ComponentSchema, ComponentPackageSchema],
+            synchronize: true,
+            logging: true
+        })
+        .then(async connection => {
+            const component = new Component();
+            component.name = "LM317";
+
+            const componentPackage = new ComponentPackage();
+            componentPackage.name = "LM317T";
+            componentPackage.datasheetURL = "https://www.mouser.hk/datasheet/2/389/lm217-1849593.pdf";
+            componentPackage.component = component;
+
+            const componentRepository = connection.getRepository(Component);
+            const componentPackageRepository = connection.getRepository(ComponentPackage);
+            try {
+                console.log(`before component.id ${component.id}`);
+                await componentRepository.save(component);
+                await componentPackageRepository.save(componentPackage);
+                console.log(`after component.id ${component.id}`);
+            } catch (e) {
+                debugger;
+            }
+
+            document.getElementById("component-form").addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const result = document.getElementById("result-container");
+                result.innerHTML = "";
+
+                const value = document.getElementById("component-input").value;
+                const found = await componentPackageRepository.find({ relations: ["component" ], where: { name: typeorm.ILike(`%${value}%`) } });
+                const hasResult = Array.isArray(found) && found.length > 0;
+                if (hasResult) {
+                    const ul = document.createElement("ul");
+
+                    found.forEach(elem => {
+                        const li = document.createElement("li");
+                        const a = document.createElement("a");
+                        a.href = elem.datasheetURL;
+                        a.target = "_blank";
+                        a.innerText = "datasheet";
+                        li.appendChild(document.createTextNode(elem.component.name));
+                        li.innerHTML += `&nbsp;`;
+                        li.appendChild(document.createTextNode(elem.name));
+                        li.innerHTML += `&nbsp;`;
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    });
+
+                    result.appendChild(ul);
+                } else {
+                    result.appendChild(document.createTextNode(`Not found`));
+                }
+            });
+        })
+        .catch(e => {
+            debugger;
+        })
+
+        // // The `initSqlJs` function is globally provided by all of the main dist files if loaded in the browser.
+        // // We must specify this locateFile function if we are loading a wasm file from anywhere other than the current html page's folder.
+        // .then(function (SQL) {
+        //     /*var xhr = new XMLHttpRequest();
+        //     xhr.open('GET', './Chinook_Sqlite.sqlite', true);
+        //     xhr.responseType = 'arraybuffer';*/
+
+        //     /*
+        //     xhr.onload = e => {
+        //     */
+        //         /*
+        //         var uInt8Array = new Uint8Array(xhr.response);
+        //         */
+        //         var db = new SQL.Database(/*uInt8Array*/);
+        //         var contents = db.exec("CREATE TABLE hello (a int, b char);");
+        //         debugger;
+        //         // contents is now [{columns:['col1','col2',...], values:[[first row], [second row], ...]}]
+            
+        //     /*};*/
+        //     /*xhr.send();*/
+        // });
+    })
+    
+    
+</script>
+
+<body>
+    <form id="component-form">
+        <label for="component-input">Name (4 to 8 characters):</label>
+        <br>
+        <input id="component-input" type="text" name="name" required/>
+        <br>
+        <!-- <button id="component-search">Search</button> -->
+        <div id="result-container">
+
+        </div>
+        <input type="submit" hidden />
+        Output is in Javascript console
+    </form>
+
 </body>
+
 </html>
